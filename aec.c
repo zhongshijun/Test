@@ -2,7 +2,7 @@
 void HighProc(float *gain)
 {
     int bins = 257;
-    const int FREQ_400HZ = 400;
+    const int FREQ_400HZ = 300;
     const int FREQ_1200HZ = 1200;
     const int FREQ_8000HZ = 8000;
 
@@ -66,8 +66,7 @@ copy(errEst, tmpErrEst, FFT_SIZE); // errEst->tmpErrEst
 
 IFFT(tmpErrEst);
 for (int i = 0; i < 257; ++i) {
-    tmpErrEst[2 * i] = tmpErrEst[2 * i];
-    tmpErrEst[2 * i + 1] = 0; 
+    tmpErrEst[2 * i] = max(tmpErrEst[2 * i], 0);
 }
 FFT(tmpErrEst);
 
