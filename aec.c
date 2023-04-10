@@ -89,4 +89,47 @@ for () {
 
 }
 
+// 5. 相干性计算
+   X: 远端频域数据
+   Y: 近端频域数据
+   errEst: 误差估计/残差信号
+   echoEst: 回声估计
+   
+   X_power： 远端信号能量 X_power_smooth 能量平滑信号
+   Y_power: 近端信号能量
+   err_power: 误差信号能量
+   echo_power: 回声信号能量
+   
+   corr_xy: 远近端互相关
+   corr_xerr: 远端和残差互相关
+   
+  // cohxd
+  // 1. 计算分母能量
+  for (i = 0; i < 257; ++i) {
+    X_power[i] = X[2 * i] * X[2 * i] + X[2 * i + 1] * X[2 * i + 1];
+    Y_power[i] = Y[2 * i] * Y[2 * i] + Y[2 * i + 1] * Y[2 * i + 1];
+    
+    X_power_smooth[i] = 0.9 * X_power_smooth[i] + 0.1 * X_power[i];
+  }
+  
+  // 2. 互相关
+  for (i = 0; i < 257; ++i) {
+    corr_xy[2 * i] = X[2 * i] * Y[2 * i] + X[2 * i + 1] * Y[2 * i + 1];
+    corr_xy[2 * i + 1] = X[2 * i + 1] * Y[2 * i] - X[2 * i] * Y[2 * i + 1]; 
+  }
+   // 3. 计算相干性
+  for (i = 0; i < 257; ++i) {
+    tmp = corr_xy[2 * i] * corr_xy[2 * i] + corr_xy[2 * i + 1] * corr_xy[2 * i + 1];
+    cohxd[i] = tmp / (X_power_smooth[i] * Y_power_smooth[i] + EPS);
+  }
+
+// 6. 根据cohxd, coheec计算NLP增益
+   for (i = 0; i < 400Hz; ++i) {
+       cohxd[i] = min(cohxd[i], 1);
+       coheec[i] = min(coheec[i], 1);
+       gain = ((cohxd[i] - coheec[i]) * 1.5 + 1.0) * coheec[i];
+       gain = min(gain, 1.0);
+   }
+   
+
 
