@@ -82,6 +82,14 @@ for (int i = 0; i < 257; ++i) {
     snrEchoEst[i] = 0.2 * snrEchoEst[i] + 0.8 * (tmp / (echoEstPow[i] + EPS));
 }
 
+// 3.1 根据snr计算回声最终增益值
+for (i = 0; i < 257; ++i) {
+    tmp1 = snrEchoEst[i];
+    tmp2 = tmp1 + 1;
+    gain[i] = tmp1 / tmp2;
+    gain[i] = min(gain[i], aec->gainMinLimit);
+}
+
 
 // 4. 倒谱消回声
 for () {
