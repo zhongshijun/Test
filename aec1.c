@@ -38,8 +38,8 @@ void HighProc(float *gain)
 // 2. 计算ERL， SER
 float xPowSmooth[257]; // 远端信号平滑能量谱 [0-257]
 float dPowSmooth[257]; // 近端信号平滑能量谱 [0-257]
-float echoEstPow[257]; // 回声估计
-float errEstPow[257]; // 残差估计
+float echoEstPow[257]; // 回声估计平滑能量[0-257]
+float errEstPow[257]; // 残差估计平滑能量[0-257]
 
 float curERL[257];
 float curSER[257];
@@ -47,12 +47,19 @@ float smoothERL[257];
 float smoothSER[257];
 
 for (int i = 0; i < 257; ++i) {
-    curERL[i] = (dPowSmooth[i] - noiseEst[i]) / (xPowSmooth[i] + EPS);
-    curSER[i] = (errEstPow[i]  - noiseEst[i]) / (echoEstPow[i] + EPS);
+    curERL[i] = (dPowSmooth[i] - noiseEst[i]) / max(xPowSmooth[i], 1);
+    curERL[i] = max(EPS, curERL[i]);
+    curSER[i] = (errEstPow[i]  - noiseEst[i]) / max(echoEstPow[i], 1);
+    curSER[i] = max(EPS, curSER[i]);
 }
 
-SMOOTH(smoothERL, curERL, 0.98);
-SMOOTH(smoothSER, curSER, 0.98);
+// alpha需要根据单双讲，当前帧回声大小动态调整
+SMOOTH(smoothERL, curERL, alpha);
+SMOOTH(smoothSER, curSER, alpha);
+
+// 可以根据在[400Hz, 2000Hz]范围内，就散curSER, curERL, smoothERL, smoothSER来作为
+// 单双讲的辅助判断依据
+
 
 
 // 3. 谐波增强消除回声
@@ -95,11 +102,11 @@ for (i = 0; i < 257; ++i) {
   // 分成0~4K低频做和4~8K
   // cemp8k: 0~4K倒谱
   // cemp16k: 4~8K倒谱
-  // echoEst: 回声估计
+  // errEst误差谱
   // 先求倒谱
     for (i = 0; i < 123; ++i) {
-        tmpPow[i] = echoEst[2 * i] * echoEst[2 * i] + 
-                    echoEst[2 * i + 1] * echoEst[2 * i + 1];
+        tmpPow[i] = errEst[2 * i] * errEst[2 * i] + 
+                    errEst[2 * i + 1] * errEst[2 * i + 1];
     }
 
     tmpPow = Log(tmpPow);
@@ -108,15 +115,49 @@ for (i = 0; i < 257; ++i) {
     for (i = 123; i >= 0; --i) {
         tmpPow[2 * i ] = tmp[i];
         tmpPow[2 * i + 1] = 0;
+
+        cemp16k[2 * i] = tmp[i];
+        cemp16k[2 * i + 1] = tmp[i];
     }
 
-    IFFT(tmpPow);
-
-    for (i = 0; i < 257; ++i) {
-        tmpPow[i] = max(tmpPow[i], 0);
+    cemp8k = IFFT(tmpPow);
+    
+    //  倒谱平滑值 
+    alpha[15] = [0, 0, 0, 0, 0, 0, 1, 0.4, 0.6, 0.8, 0.8, 0.85, 0.9, 0.95, 0.997]
+    for (i = 0; i < 15; ++i) {
+        smooth_cemp8k = SMOOTH(cemp8k, alpha[i]);
+    }
+    alpha1 = alpha[14];
+        for (i = 15; i < 123; ++i) {
+        smooth_cemp8k = SMOOTH(cemp8k, alpha1);
     }
 
-    cemp8k = FFT(tmpPow);
+    cempMod: // 原始倒谱值 [2k-4k]
+    cempModAmp: //平滑倒谱值 [0-2k]
+    for (i = 0; i < 123; ++i) {
+        tmp1 = cemp8k[i];
+        tmp2 = smooth_cemp8k[i];
+        cempMod = tmp1;
+        if (tmp1 > 0.36 && i >= 15) {
+            smooth_cemp8k[i] = 0;
+            tmp2 = tmp1 * 5;
+        }
+        cempMod[i] = tmp1;
+        cempModAmp[i] = tmp2;
+
+    }
+
+    cempMod = FFT(cempMod);
+    for (i = 0; i < 123 / 2; ++i) {
+        snr = exp(cempMod[2 * i]);
+        gain = snr / (echoEst + EPS);
+    }
+
+    cempModAmp = FFT(cempModAmp);
+    for (i = 123 / 2; i < 123; ++i) {
+        snr = exp(cempModAmp[2 * i]);
+        gain = snr / (echoEst + EPS);
+    }
 
 // 5. 相干性计算
    X: 远端频域数据
