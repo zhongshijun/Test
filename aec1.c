@@ -154,6 +154,13 @@ for (i = 0; i < 257; ++i) {
     cohxd[i] = tmp / (X_power_smooth[i] * Y_power_smooth[i] + EPS);
   }
 
+  // d. 计算相干性ERL
+  for(i = 0; i < 257; ++i) {
+    coheec[i] = min(1, coheec[i]);
+    cohed[i] = min(1, cohed[i]);
+    cohERL[i] = coheec * (1 - cohed[i]); // 不做平滑
+  }
+
 // 7. 根据cohxd, cohxe计算NLP增益
    for (i = 0; i < 400Hz; ++i) {
        gain = ((cohxd[i] - cohxe[i]) * 1.5 + 1.0) * cohxe[i];
