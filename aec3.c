@@ -66,7 +66,7 @@ SMOOTH(smoothSER, curSER, alpha);
   }
 
   for (i = 0; i < 257; ++i) {
-    tmp3 = tmp * smoothERL;
+    tmp3 = X_pow[i] * smoothERL[i];
     Y_pow = echoPow[2 * i ] * echoPow[2 * i ] + echoPow[2 * i + 1] * echoPow[2 * i + 1]; // 谐波增强后的回声估计
 
     echoPow3[i] = tmp3 + Y_pow - 2 * (X_pow[i] * Y_pow);
