@@ -191,14 +191,6 @@ for (i = 0; i < 257; ++i) {
     }
    }
 
-
-  // 滤波器发散处理
-  for (i = 0; i < 257; ++i) {
-    tmp = sqrt(micPow / (errPow, EPS));
-    tmp = min(1, tmp);
-    errEst[i] = errEst[i] * tmp; 
-  }
-
    // [2.3] 弱NLP计算
    // 需要对静音的ref信号随机增加白噪声
    for (i = 0; i < 96; ++i) {
